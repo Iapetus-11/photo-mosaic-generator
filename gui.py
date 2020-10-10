@@ -76,6 +76,12 @@ class NewPaletteWindow(BaseWindow):
         self.show_button.clicked.connect(lambda: self.connect_generate_pal())
         self.sub_layouts[3].addWidget(self.show_button)
 
+    def connect_choose_folder(self):
+        pass
+
+    def connect_generate_pal(self):
+        pass
+
 
 class MainApp(BaseWindow):
     def __init__(self, app):
@@ -109,6 +115,7 @@ class MainApp(BaseWindow):
 
     def connect_use_pre_pal(self):
         pass
+
 
 if __name__ == '__main__':
     main = QApplication([])
