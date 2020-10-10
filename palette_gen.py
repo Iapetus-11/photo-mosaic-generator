@@ -4,17 +4,16 @@ import json
 import cv2
 import os
 
-desired_dims = (16, 16)  # h, w
-
-def process(image_file):
-    print(f'Processing: {image_file}')
+def pal_from_image(image_file, dest_dims, verbose):
+    if verbose:
+        print(f'Processing: {image_file}')
 
     img = cv2.imread(image_file, cv2.IMREAD_UNCHANGED)
 
     if img is None:
         return
 
-    if img.shape[1] != desired_dims[1] or img.shape[0] != desired_dims[0]:
+    if img.shape[1] != dest_dims[1] or img.shape[0] != dest_dims[0]:
         img = cv2.resize(img, desired_dims)
 
     p_count = 0
@@ -39,41 +38,45 @@ def process(image_file):
 
     b = base64.b64encode(cv2.imencode('.png', img)[1]).decode('utf-8')
 
-    return [[int(avg/128) for avg in avgs], image_file], [[int(avg/64) for avg in avgs], image_file], [[int(avg/32) for avg in avgs], image_file], {image_file: b}
+    return (
+        [[int(avg/128) for avg in avgs], image_file],
+        [[int(avg/64) for avg in avgs], image_file],
+        [[int(avg/32) for avg in avgs], image_file],
+        {image_file: b}
+    )
 
-def main():
-    print('Processing images...')
+class Palette:
+    def __init__(self, *, resolution: int = 16, source_dir: str = '.', verbose: bool = False):
+        self.source_dir = source_dir
+        self.dest_dims = (resolution, resolution)
+        self.data = None
+        self.verbose = verbose
 
-    image_files = (*filter((lambda file: (file.endswith('.png') or file.endswith('.jpg'))), next(os.walk('.'))[2]),)
+    def process(self):
+        if self.verbose: print('Processing images...')
 
-    with Pool(8) as pool:
-        raw_p = (*filter((lambda e: bool(e)), pool.map(process, image_files)),)
+        image_files = (*filter((lambda file: (file.endswith('.png') or file.endswith('.jpg'))), next(os.walk(self.source_dir))[2]),)
 
-    map_bi = []
-    map_quad = []
-    map_oct = []
-    palette = {}
+        with Pool(8) as pool:
+            raw_p = (*filter((lambda e: bool(e)), pool.map(pal_from_image, image_files)),)
 
-    for res in raw_p:
-        map_bi.append(res[0])
-        map_quad.append(res[1])
-        map_oct.append(res[2])
-        palette.update(res[3])
+        map_bi = []
+        map_quad = []
+        map_oct = []
+        palette = {}
 
-    out = {
-        'dims': desired_dims,
-        'bi': map_bi,
-        'quad': map_quad,
-        'oct': map_oct,
-        'palette': palette
-    }
+        for res in raw_p:
+            map_bi.append(res[0])
+            map_quad.append(res[1])
+            map_oct.append(res[2])
+            palette.update(res[3])
 
-    print(f'Dumping images ({len(raw_p)} total)...')
+        self.data = {
+            'dims': desired_dims,
+            'bi': map_bi,
+            'quad': map_quad,
+            'oct': map_oct,
+            'palette': palette
+        }
 
-    with open('map.json', 'w+') as out_f:
-        out_f.write(json.dumps(out))
-
-    print('Done!')
-
-if __name__ == '__main__':
-    main()
+        if self.verbose: print('Done!')
